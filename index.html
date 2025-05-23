@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Model Router Chat</title>
+<style>
+  body   { font-family:sans-serif; margin:0; background:#f5f7fa; }
+  #chat  { max-width:720px; margin:40px auto; display:flex; flex-direction:column; }
+  .bubble{ padding:10px 14px; border-radius:8px; margin:6px 0; white-space:pre-wrap; }
+  .user  { align-self:flex-end; background:#0078d4; color:#fff; }
+  .bot   { align-self:flex-start; background:#eee;   color:#000; }
+  .tag   { font-size:.75rem; opacity:.6; margin-top:2px; }
+  #input { width:100%; padding:12px; font-size:1rem; box-sizing:border-box; }
+</style>
+</head>
+<body>
+  <div id="chat"></div>
+  <input id="input" placeholder="Ask anything…" autocomplete="off" />
+
+<script>
+const chat  = document.getElementById("chat");
+const input = document.getElementById("input");
+const ws    = new WebSocket(`ws://${location.host}/ws`);
+
+function addBubble(text, cls, model=null) {
+  const wrap = Object.assign(document.createElement("div"), {style:"display:flex;flex-direction:column;"});
+  const div  = Object.assign(document.createElement("div"), {className:`bubble ${cls}`, textContent:text});
+  wrap.appendChild(div);
+  if (model) {
+    const tag = Object.assign(document.createElement("span"), {className:"tag", textContent:`Model: ${model}`});
+    wrap.appendChild(tag);
+  }
+  chat.appendChild(wrap);
+  chat.scrollTop = chat.scrollHeight;
+}
+
+input.addEventListener("keydown", e => {
+  if (e.key === "Enter" && input.value.trim()) {
+    const msg = input.value.trim();
+    addBubble(msg, "user");
+    ws.send(msg);
+    input.value = "";
+  }
+});
+
+let assembling = "";
+ws.onmessage = e => {
+  const data = e.data;
+  if (data.startsWith("<<MODEL::")) {
+    const model = data.slice(9, -2);
+    addBubble(assembling, "bot", model);
+    assembling = "";
+  } else {
+    assembling += data; // token chunk
+  }
+};
+</script>
+</body>
+</html>
